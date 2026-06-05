@@ -274,7 +274,21 @@ function parseJSON(v, fallback) {
   try { return v ? JSON.parse(v) : fallback; } catch(e) { return fallback; }
 }
 
-let state = parseJSON(Store.get("wc26_family_state_v1"), {predictions:{}, scores:{}});
+let state = { predictions: {}, scores: {} };
+
+async function loadSharedData() {
+  try {
+    const res = await fetch("./data.json?cache=" + Date.now());
+    const data = await res.json();
+    state = {
+      predictions: data.predictions || {},
+      scores: data.scores || {}
+    };
+    setStatus("Loaded shared GitHub data.");
+  } catch (err) {
+    setStatus("Could not load data.json.");
+  }
+} 
 if (!state.predictions) state.predictions = {};
 if (!state.scores) state.scores = {};
 let undoStack = parseJSON(Store.get("wc26_family_undo_v1"), []);
@@ -455,10 +469,11 @@ document.getElementById("importFile").addEventListener("change", async e => {
 document.getElementById("stageFilter").addEventListener("change", renderMatches);
 document.getElementById("searchBox").addEventListener("input", renderMatches);
 try {
-  renderFilters();
-  renderLeaderboard();
-  renderMatches();
-  setStatus("Ready");
+await loadSharedData();
+renderFilters();
+renderLeaderboard();
+renderMatches();
+setStatus("Ready");
 } catch(err) {
   setStatus("Display error: " + err.message);
   document.getElementById("matches").innerHTML = '<article class="match"><div class="title">Display error</div><p>' + escapeHtml(err.message) + '</p></article>';
